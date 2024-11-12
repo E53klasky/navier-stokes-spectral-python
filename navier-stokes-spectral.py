@@ -1,5 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
+from adios2 import Stream, Adios
 
 """
 Create Your Own Navier-Stokes Spectral Method Simulation (With Python)
@@ -99,60 +100,77 @@ def main():
 	outputCount = 1
 	
 	#Main Loop
-	for i in range(Nt):
+	
+	# adios = Adios("adios2.xml") # need to find out what this shoud be
+	# ioOut = adios.declare_io("uncompressed error") # need to find out this as well
+	# fout = Stream(ioOut, "Navier-stokes.bp", "w")
+	with Stream ("Navier-stokes.bp", "w") as s:
+		for _ in s.steps(Nt):    #i in range(Nt):
 
-		# Advection: rhs = -(v.grad)v
-		dvx_x, dvx_y = grad(vx, kx, ky)
-		dvy_x, dvy_y = grad(vy, kx, ky)
+			# Advection: rhs = -(v.grad)v
+			dvx_x, dvx_y = grad(vx, kx, ky)
+			dvy_x, dvy_y = grad(vy, kx, ky)
 		
-		rhs_x = -(vx * dvx_x + vy * dvx_y)
-		rhs_y = -(vx * dvy_x + vy * dvy_y)
+			rhs_x = -(vx * dvx_x + vy * dvx_y)
+			rhs_y = -(vx * dvy_x + vy * dvy_y)
 		
-		rhs_x = apply_dealias(rhs_x, dealias)
-		rhs_y = apply_dealias(rhs_y, dealias)
+			rhs_x = apply_dealias(rhs_x, dealias)
+			rhs_y = apply_dealias(rhs_y, dealias)
 
-		vx += dt * rhs_x
-		vy += dt * rhs_y
+			vx += dt * rhs_x
+			vy += dt * rhs_y
 		
-		# Poisson solve for pressure
-		div_rhs = div(rhs_x, rhs_y, kx, ky)
-		P = poisson_solve( div_rhs, kSq_inv )
-		dPx, dPy = grad(P, kx, ky)
+			# Poisson solve for pressure
+			div_rhs = div(rhs_x, rhs_y, kx, ky)
+			P = poisson_solve( div_rhs, kSq_inv )
+			dPx, dPy = grad(P, kx, ky)
 		
-		# Correction (to eliminate divergence component of velocity)
-		vx += - dt * dPx
-		vy += - dt * dPy
+			# Correction (to eliminate divergence component of velocity)
+			vx += - dt * dPx
+			vy += - dt * dPy
 		
-		# Diffusion solve (implicit)
-		vx = diffusion_solve( vx, dt, nu, kSq )
-		vy = diffusion_solve( vy, dt, nu, kSq )
+			# Diffusion solve (implicit)
+			vx = diffusion_solve( vx, dt, nu, kSq )
+			vy = diffusion_solve( vy, dt, nu, kSq )
 		
-		# vorticity (for plotting)
-		wz = curl(vx, vy, kx, ky)
+			# vorticity (for plotting)
+			wz = curl(vx, vy, kx, ky)
 		
-		# update time
-		t += dt
-		print(t)
+			# update time
+			# print(type(wz))
 		
-		# plot in real time
-		plotThisTurn = False
-		if t + dt > outputCount*tOut:
-			plotThisTurn = True
-		if (plotRealTime and plotThisTurn) or (i == Nt-1):
+			t += dt
+			#print(wz.shape)
+			wz = curl(vx, vy, kx, ky)
+			wz_contiguous = np.ascontiguousarray(wz)
 			
-			plt.cla()
-			plt.imshow(wz, cmap = 'RdBu')
-			plt.clim(-20,20)
-			ax = plt.gca()
-			ax.invert_yaxis()
-			ax.get_xaxis().set_visible(False)
-			ax.get_yaxis().set_visible(False)	
-			ax.set_aspect('equal')	
-			plt.pause(0.001)
-			outputCount += 1
+			s.write("curl", wz_contiguous, [400, 400], (0, 0), [400, 400])	
+			#s.write("curl", wz, [400,400], (0,0), [400,400])
+			print(f"The time: {t}")
+			""" --------------read here ----------------"""
+			""" adios vars go name, var, [dm1,dm2,dm3], [offset,offset,offset], [local size, local size, local size]"""
+			s.write("delta_T", dt)
+			# plot in real time
+			plotThisTurn = False
+			if t + dt > outputCount*tOut:
+				plotThisTurn = True
+			if (plotRealTime and plotThisTurn) or (s == Nt-1):
+			
+				plt.cla()
+				plt.imshow(wz, cmap = 'RdBu')
+				plt.clim(-20,20)
+				ax = plt.gca()
+				ax.invert_yaxis()
+				ax.get_xaxis().set_visible(False)
+				ax.get_yaxis().set_visible(False)	
+				ax.set_aspect('equal')	
+				plt.pause(0.001)
+				outputCount += 1
 			
 			
 	# Save figure
+	print("Just wrote it to this Navier-stokes.bp")
+	
 	plt.savefig('navier-stokes-spectral.png',dpi=240)
 	plt.show()
 	
