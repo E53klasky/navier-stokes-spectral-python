@@ -108,53 +108,71 @@ def main():
 		for _ in s.steps(Nt):    #i in range(Nt):
 
 			# Advection: rhs = -(v.grad)v
-			dvx_x, dvx_y = grad(vx, kx, ky)
-			dvy_x, dvy_y = grad(vy, kx, ky)
-		
+			dvx_x, dvx_y = grad(vx, kx, ky) # done
+			dvy_x, dvy_y = grad(vy, kx, ky) # done
+			#---------------- is this rho x and y ?????????----------------
 			rhs_x = -(vx * dvx_x + vy * dvx_y)
 			rhs_y = -(vx * dvy_x + vy * dvy_y)
-		
-			rhs_x = apply_dealias(rhs_x, dealias)
-			rhs_y = apply_dealias(rhs_y, dealias)
+			# what's the difference ??????????????????--------------------------
+			rhs_x = apply_dealias(rhs_x, dealias) # done
+			rhs_y = apply_dealias(rhs_y, dealias) # done
 
 			vx += dt * rhs_x
 			vy += dt * rhs_y
 		
 			# Poisson solve for pressure
-			div_rhs = div(rhs_x, rhs_y, kx, ky)
-			P = poisson_solve( div_rhs, kSq_inv )
-			dPx, dPy = grad(P, kx, ky)
+			div_rhs = div(rhs_x, rhs_y, kx, ky) # done
+			P = poisson_solve( div_rhs, kSq_inv ) # done 
+			dPx, dPy = grad(P, kx, ky) # done
 		
 			# Correction (to eliminate divergence component of velocity)
 			vx += - dt * dPx
 			vy += - dt * dPy
 		
 			# Diffusion solve (implicit)
-			vx = diffusion_solve( vx, dt, nu, kSq )
-			vy = diffusion_solve( vy, dt, nu, kSq )
+			vx = diffusion_solve( vx, dt, nu, kSq ) # done
+			vy = diffusion_solve( vy, dt, nu, kSq ) # done
 		
-			# vorticity (for plotting)
-			wz = curl(vx, vy, kx, ky)
+			# vorticity (for plotting) 
+			wz = curl(vx, vy, kx, ky) # done
 		
 			# update time
 			# print(type(wz))
 		
 			t += dt
 			
-			# print("Shape:", dPx.shape)
-			# print("Data type:", wz.dtype)
-			# print("Is contiguous:", dPx.flags['C_CONTIGUOUS'])
+			# print("Shape:", dvy_x.shape)
+			# print("Data type:", dvy_x.dtype)
+			# print("Is contiguous:", dvy_x.flags['C_CONTIGUOUS'])
+			# break
 			
-
 			wz = curl(vx, vy, kx, ky)
+			# making it contiguous array (C-order) in memory for wrghting it out in memory 
 			wz_contiguous = np.ascontiguousarray(wz)
 			dPx_contiguous = np.ascontiguousarray(dPx)
 			dPy_contiguous = np.ascontiguousarray(dPy)
+			div_rhs_contiguous = np.ascontiguousarray(div_rhs)
+			P_contiguous = np.ascontiguousarray(P)
+			vx_contiguous = np.ascontiguousarray(vx)
+			vy_contiguous = np.ascontiguousarray(vy)	
+			rhs_x_contiguous = np.ascontiguousarray(rhs_x)
+			rhs_y_contiguous = np.ascontiguousarray(rhs_y)
+			dvx_x_contiguous = np.ascontiguousarray(dvx_x)
+			dvy_x_contiguous = np.ascontiguousarray(dvy_x)
+
 
 			"""write out adios vars here"""
 			s.write("curl", wz_contiguous, [400, 400], (0, 0), [400, 400])	
 			s.write("gradient of V dPx", dPx_contiguous, [400,400] , (0,0), [400,400] )
 			s.write("gradient of V dPy", dPy_contiguous, [400,400] , (0,0), [400,400] )
+			s.write("divergence", div_rhs_contiguous, [400,400] , (0,0), [400,400] )
+			s.write("pressure", P_contiguous, [400,400] , (0,0), [400,400] )
+			s.write("Velocity X", vx_contiguous, [400,400], (0,0), [400,400])
+			s.write("Velocity Y", vy_contiguous, [400,400], (0,0), [400,400])
+			s.write("RHS X", rhs_x_contiguous, [400,400], (0,0), [400,400])
+			s.write("RHS Y", rhs_y_contiguous, [400,400], (0,0), [400,400])
+			s.write("second derivative Velocity X", dvx_x_contiguous, [400,400], (0,0), [400,400])
+			s.write("second derivative Velocity Y", dvy_x_contiguous, [400,400], (0,0), [400,400])
 
 			print(f"The time: {t}")
 			
