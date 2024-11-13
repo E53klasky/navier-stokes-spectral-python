@@ -140,15 +140,25 @@ def main():
 			# print(type(wz))
 		
 			t += dt
-			#print(wz.shape)
+			
+			# print("Shape:", dPx.shape)
+			# print("Data type:", wz.dtype)
+			# print("Is contiguous:", dPx.flags['C_CONTIGUOUS'])
+			
+
 			wz = curl(vx, vy, kx, ky)
 			wz_contiguous = np.ascontiguousarray(wz)
-			
+			dPx_contiguous = np.ascontiguousarray(dPx)
+			dPy_contiguous = np.ascontiguousarray(dPy)
+
+			"""write out adios vars here"""
 			s.write("curl", wz_contiguous, [400, 400], (0, 0), [400, 400])	
-			#s.write("curl", wz, [400,400], (0,0), [400,400])
+			s.write("gradient of V dPx", dPx_contiguous, [400,400] , (0,0), [400,400] )
+			s.write("gradient of V dPy", dPy_contiguous, [400,400] , (0,0), [400,400] )
+
 			print(f"The time: {t}")
-			""" --------------read here ----------------"""
-			""" adios vars go name, var, [dm1,dm2,dm3], [offset,offset,offset], [local size, local size, local size]"""
+			
+			
 			s.write("delta_T", dt)
 			# plot in real time
 			plotThisTurn = False
