@@ -99,21 +99,24 @@ def main():
 	fig = plt.figure(figsize=(4,4), dpi=80)
 	outputCount = 1
 	
-	#Main Loop
+
 	
 	# adios = Adios("adios2.xml") # need to find out what this shoud be
 	# ioOut = adios.declare_io("uncompressed error") # need to find out this as well
 	# fout = Stream(ioOut, "Navier-stokes.bp", "w")
+
+	#Main Loop
+	# you can change the name of this to be whatever you want it to be
 	with Stream ("Navier-stokes.bp", "w") as s:
 		for _ in s.steps(Nt):    #i in range(Nt):
 
 			# Advection: rhs = -(v.grad)v
-			dvx_x, dvx_y = grad(vx, kx, ky) # done
+			dvx_x, dvx_y = grad(vx, kx, ky) # done 
 			dvy_x, dvy_y = grad(vy, kx, ky) # done
-			#---------------- is this rho x and y ?????????----------------
-			rhs_x = -(vx * dvx_x + vy * dvx_y)
-			rhs_y = -(vx * dvy_x + vy * dvy_y)
-			# what's the difference ??????????????????--------------------------
+			
+			rhs_x = -(vx * dvx_x + vy * dvx_y) # done
+			rhs_y = -(vx * dvy_x + vy * dvy_y) # done
+			
 			rhs_x = apply_dealias(rhs_x, dealias) # done
 			rhs_y = apply_dealias(rhs_y, dealias) # done
 
@@ -147,39 +150,47 @@ def main():
 			# break
 			
 			wz = curl(vx, vy, kx, ky)
-			# making it contiguous array (C-order) in memory for wrghting it out in memory 
-			wz_contiguous = np.ascontiguousarray(wz)
-			dPx_contiguous = np.ascontiguousarray(dPx)
-			dPy_contiguous = np.ascontiguousarray(dPy)
-			div_rhs_contiguous = np.ascontiguousarray(div_rhs)
-			P_contiguous = np.ascontiguousarray(P)
-			vx_contiguous = np.ascontiguousarray(vx)
-			vy_contiguous = np.ascontiguousarray(vy)	
-			rhs_x_contiguous = np.ascontiguousarray(rhs_x)
-			rhs_y_contiguous = np.ascontiguousarray(rhs_y)
-			dvx_x_contiguous = np.ascontiguousarray(dvx_x)
-			dvy_x_contiguous = np.ascontiguousarray(dvy_x)
+			
+
+			plotThisTurn = False
 
 
-			"""write out adios vars here"""
-			s.write("curl", wz_contiguous, [400, 400], (0, 0), [400, 400])	
-			s.write("gradient of V dPx", dPx_contiguous, [400,400] , (0,0), [400,400] )
-			s.write("gradient of V dPy", dPy_contiguous, [400,400] , (0,0), [400,400] )
-			s.write("divergence", div_rhs_contiguous, [400,400] , (0,0), [400,400] )
-			s.write("pressure", P_contiguous, [400,400] , (0,0), [400,400] )
-			s.write("Velocity X", vx_contiguous, [400,400], (0,0), [400,400])
-			s.write("Velocity Y", vy_contiguous, [400,400], (0,0), [400,400])
-			s.write("RHS X", rhs_x_contiguous, [400,400], (0,0), [400,400])
-			s.write("RHS Y", rhs_y_contiguous, [400,400], (0,0), [400,400])
-			s.write("second derivative Velocity X", dvx_x_contiguous, [400,400], (0,0), [400,400])
-			s.write("second derivative Velocity Y", dvy_x_contiguous, [400,400], (0,0), [400,400])
+			# this can be deleled or changed 
+			# this is here only becuase I write out a lot of data and I do not want write out so much on my computer
+			if t >= 1:
+				# making it contiguous array (C-order) in memory for wrghting it out in memory 
+				wz_contiguous = np.ascontiguousarray(wz)
+				dPx_contiguous = np.ascontiguousarray(dPx)
+				dPy_contiguous = np.ascontiguousarray(dPy)
+				div_rhs_contiguous = np.ascontiguousarray(div_rhs)
+				P_contiguous = np.ascontiguousarray(P)
+				vx_contiguous = np.ascontiguousarray(vx)
+				vy_contiguous = np.ascontiguousarray(vy)	
+				rhs_x_contiguous = np.ascontiguousarray(rhs_x)
+				rhs_y_contiguous = np.ascontiguousarray(rhs_y)
+				dvx_x_contiguous = np.ascontiguousarray(dvx_x)
+				dvy_x_contiguous = np.ascontiguousarray(dvy_x)
+
+				"""write out adios vars here"""
+				s.write("curl", wz_contiguous, [400, 400], (0, 0), [400, 400])	
+				s.write("gradient of V dPx", dPx_contiguous, [400,400] , (0,0), [400,400] )
+				s.write("gradient of V dPy", dPy_contiguous, [400,400] , (0,0), [400,400] )
+				s.write("divergence", div_rhs_contiguous, [400,400] , (0,0), [400,400] )
+				s.write("pressure", P_contiguous, [400,400] , (0,0), [400,400] )
+				s.write("Velocity X", vx_contiguous, [400,400], (0,0), [400,400])
+				s.write("Velocity Y", vy_contiguous, [400,400], (0,0), [400,400])
+				s.write("RHS X", rhs_x_contiguous, [400,400], (0,0), [400,400])
+				s.write("RHS Y", rhs_y_contiguous, [400,400], (0,0), [400,400])
+				s.write("second derivative Velocity X", dvx_x_contiguous, [400,400], (0,0), [400,400])
+				s.write("second derivative Velocity Y", dvy_x_contiguous, [400,400], (0,0), [400,400])
+				s.write("delta_T", dt)
 
 			print(f"The time: {t}")
 			
 			
-			s.write("delta_T", dt)
+			
 			# plot in real time
-			plotThisTurn = False
+			
 			if t + dt > outputCount*tOut:
 				plotThisTurn = True
 			if (plotRealTime and plotThisTurn) or (s == Nt-1):
