@@ -1,6 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from adios2 import Stream, Adios
+#from mpi4py import MPI
 
 """
 Create Your Own Navier-Stokes Spectral Method Simulation (With Python)
@@ -59,41 +60,44 @@ def apply_dealias(f, dealias):
 
 def main():
 	""" Navier-Stokes Simulation """
-	
+	#comm = MPI.COMM_WORLD
+
 	# Simulation parameters
-	N         = 400     # Spatial resolution
-	t         = 0       # current time of the simulation
-	tEnd      = 1       # time at which simulation ends
-	dt        = 0.001   # timestep
-	tOut      = 0.01    # draw frequency
-	nu        = 0.001   # viscosity
+	N         = 400     # Spatial resolution                   done
+	t         = 0       # current time of the simulation       done
+	tEnd      = 1       # time at which simulation ends        done
+	dt        = 0.001   # timestep                             done
+	tOut      = 0.01    # draw frequency                       done
+	nu        = 0.001   # viscosity                            done
 	plotRealTime = True # switch on for plotting as the simulation goes along
 	
 	# Domain [0,1] x [0,1]
-	L = 1    
-	xlin = np.linspace(0,L, num=N+1)  # Note: x=0 & x=1 are the same point!
-	xlin = xlin[0:N]                  # chop off periodic point
+	L = 1    # done 
+	xlin = np.linspace(0,L, num=N+1)  # Note: x=0 & x=1 are the same point! done
+	xlin = xlin[0:N]                  # chop off periodic point             done
 	xx, yy = np.meshgrid(xlin, xlin)
 	
 	# Intial Condition (vortex)
-	vx = -np.sin(2*np.pi*yy)
+	vx = -np.sin(2*np.pi*yy)       
 	vy =  np.sin(2*np.pi*xx*2) 
 	
 	# Fourier Space Variables
-	klin = 2.0 * np.pi / L * np.arange(-N/2, N/2)
-	kmax = np.max(klin)
-	kx, ky = np.meshgrid(klin, klin)
-	kx = np.fft.ifftshift(kx)
-	ky = np.fft.ifftshift(ky)
-	kSq = kx**2 + ky**2
-	kSq_inv = 1.0 / kSq
-	kSq_inv[kSq==0] = 1
+	klin = 2.0 * np.pi / L * np.arange(-N/2, N/2) # done
+	kmax = np.max(klin) # done
+	kx, ky = np.meshgrid(klin, klin) # done
+	kx = np.fft.ifftshift(kx) # done
+	ky = np.fft.ifftshift(ky) # done
+	kSq = kx**2 + ky**2       # done
+	kSq_inv = 1.0 / kSq       # done
+	kSq_inv[kSq==0] = 1       # done
 	
 	# dealias with the 2/3 rule
-	dealias = (np.abs(kx) < (2./3.)*kmax) & (np.abs(ky) < (2./3.)*kmax)
+	dealias = (np.abs(kx) < (2./3.)*kmax) & (np.abs(ky) < (2./3.)*kmax) # done
 	
 	# number of timesteps
-	Nt = int(np.ceil(tEnd/dt))
+	Nt = int(np.ceil(tEnd/dt))  # done
+
+
 	
 	# prep figure
 	fig = plt.figure(figsize=(4,4), dpi=80)
@@ -101,10 +105,10 @@ def main():
 	
 
 	
-	# adios = Adios("adios2.xml") # need to find out what this shoud be
-	# ioOut = adios.declare_io("uncompressed error") # need to find out this as well
-	# fout = Stream(ioOut, "Navier-stokes.bp", "w")
-
+	
+	# adios = Adios("adios2.xml", mpi.comm_app)
+	# io = adios.declare_io("uncompressed error")
+	# fout = Stream(io, "Navier-stokes.bp", "w")
 	#Main Loop
 	# you can change the name of this to be whatever you want it to be
 	with Stream ("Navier-stokes.bp", "w") as s:
@@ -144,10 +148,7 @@ def main():
 		
 			t += dt
 			
-			# print("Shape:", dvy_x.shape)
-			# print("Data type:", dvy_x.dtype)
-			# print("Is contiguous:", dvy_x.flags['C_CONTIGUOUS'])
-			# break
+			
 			
 			wz = curl(vx, vy, kx, ky)
 			
@@ -170,6 +171,8 @@ def main():
 				rhs_y_contiguous = np.ascontiguousarray(rhs_y)
 				dvx_x_contiguous = np.ascontiguousarray(dvx_x)
 				dvy_x_contiguous = np.ascontiguousarray(dvy_x)
+				dealias = np.array(dealias, dtype=np.float64)
+				dealias__contiguous  = np.ascontiguousarray(dealias)
 
 				"""write out adios vars here"""
 				s.write("curl", wz_contiguous, [400, 400], (0, 0), [400, 400])	
@@ -184,6 +187,24 @@ def main():
 				s.write("second derivative Velocity X", dvx_x_contiguous, [400,400], (0,0), [400,400])
 				s.write("second derivative Velocity Y", dvy_x_contiguous, [400,400], (0,0), [400,400])
 				s.write("delta_T", dt)
+				s.write("Spatial resolution",N)
+				s.write("time",t)
+				s.write("tEnd",tEnd)
+				s.write("draw frequency", dt)
+				s.write("viscosity",nu)
+				s.write("NT",Nt)
+				s.write("xlength",xlin)
+				s.write("xx",xx)
+				s.write("yy",yy)
+				s.write("L",L)
+				s.write("klin", klin, [len(klin)], [0], [len(klin)])
+				s.write("kmax",kmax)
+				s.write("kx",kx, [400,400], (0,0), [400,400])
+				s.write("ky",ky, [400,400], (0,0), [400,400])
+				s.write("kSq_inv",kSq_inv, [400,400], (0,0), [400,400])
+				s.write("dealias", dealias__contiguous, [400,400], (0,0), [400,400])
+
+
 
 			print(f"The time: {t}")
 			
@@ -212,7 +233,8 @@ def main():
 	
 	plt.savefig('navier-stokes-spectral.png',dpi=240)
 	plt.show()
-	
+
+	#MPI.Finalize()
 	return 0
 	
 
